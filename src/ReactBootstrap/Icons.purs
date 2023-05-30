@@ -20,6 +20,8 @@ module ReactBootstrap.Icons
   , infoCircleFill
   , fileEarmarkPlus
   , files
+  , listOl
+  , unsafeIcon
   , wallet2
   ) where
 
@@ -95,6 +97,9 @@ infoCircle = unsafeIcon "info-circle"
 
 infoCircleFill :: Icon
 infoCircleFill = unsafeIcon "info-circle-fill"
+
+listOl :: Icon
+listOl = unsafeIcon "list-ol"
 
 wallet2 :: Icon
 wallet2 = unsafeIcon "wallet2"
