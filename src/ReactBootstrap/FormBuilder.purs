@@ -137,6 +137,7 @@ type FormBuilder = FormBuilderT Identity
 derive instance Newtype (FormBuilderT builderM validatorM i o) _
 derive newtype instance (Applicative builderM, Applicative validatorM) => Functor (FormBuilderT builderM validatorM i)
 derive newtype instance (Monad builderM, Monad validatorM) => Apply (FormBuilderT builderM validatorM i)
+derive newtype instance (Monad builderM, Monad validatorM) => Applicative (FormBuilderT builderM validatorM i)
 instance (Monad validatorM, Monad builderM) => Semigroupoid (FormBuilderT builderM validatorM) where
   compose (FormBuilderT (Compose builder1)) (FormBuilderT (Compose builder2)) = formBuilderT do
     form1 <- builder1
@@ -804,7 +805,6 @@ renderChoiceField { choices, inline, possibleHelpText, possibleLabel, name } { v
             DOM.option { value, disabled } [ DOOM.text label' ]
 
           onChangeHandler = handler targetValue \val -> do
-            traceM val
             (traverse_ onChange val)
 
           { isValid, isInvalid } = fieldValidity touched selectedValue errors
