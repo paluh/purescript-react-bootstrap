@@ -11,14 +11,13 @@ import Prelude
 
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
-import Data.Either (note)
+import Data.Either (Either(..))
 import Data.Foldable (foldMap, null)
 import Data.FormURLEncoded.Query (FieldId(..), Query)
 import Data.FormURLEncoded.Query as Query
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Either (Either(..))
 import Data.Monoid.Disj (Disj(..))
 import Data.Newtype (class Newtype, un)
 import Data.Set (Set)
@@ -37,9 +36,9 @@ import Polyform.Validator as Validator
 import React.Basic.Events (EventHandler, SyntheticEvent, handler_)
 import React.Basic.Hooks (type (&), type (/\), Hook, UseEffect, UseMemo, UseState, useEffect, useMemo, useState, useState', (/\))
 import React.Basic.Hooks as React
+import React.Basic.Hooks.UseDebounce (useDebounce)
 import Safe.Coerce (coerce)
 import Type.Row (type (+))
-import React.Basic.Hooks.UseDebounce (useDebounce)
 
 
 fieldForm

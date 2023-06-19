@@ -3,10 +3,9 @@ module ReactBootstrap.FormBuilder where
 import Prelude
 
 import Control.Alternative as Alternative
-import Control.Apply (lift2)
 import Control.Monad.Reader (ReaderT, runReaderT, withReaderT)
 import Control.Monad.Reader.Class (ask)
-import Control.Monad.State (State, StateT, evalState, evalStateT, get, put)
+import Control.Monad.State (StateT, evalStateT, get, put)
 import Control.Monad.Trans.Class (lift)
 import ConvertableOptions (class Defaults, defaults)
 import Data.Array as Array
@@ -15,84 +14,52 @@ import Data.Array.ArrayAL as ArrayAL
 import Data.Bifunctor (bimap, lmap)
 import Data.Date (Date)
 import Data.DateTime (DateTime(..), Hour, Minute, Time(..))
-import Data.DateTime.ISO (parseISODate, parseISOTime)
+import Data.DateTime.ISO (parseISODate)
 import Data.Decimal (Decimal)
 import Data.Either (Either(..), either, note)
 import Data.Enum (class BoundedEnum, toEnum, upFromIncluding)
-import Data.Foldable (class Foldable, fold, foldMap, foldl, null, traverse_)
-import Data.Foldable (length, null)
+import Data.Foldable (fold, foldMap, null, traverse_)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.FormURLEncoded.Query (FieldId(..), Query)
-import Data.FormURLEncoded.Query (FieldId(..), Query)
 import Data.FormURLEncoded.Query as FormURLEncoded
-import Data.FormURLEncoded.Query as Query
 import Data.Formatter.Parser.Number (parseDigit)
 import Data.Functor.Compose (Compose(..))
-import Data.FunctorWithIndex (mapWithIndex)
 import Data.Identity (Identity(..))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe, isJust)
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Monoid as Monoid
-import Data.Monoid.Disj (Disj(..))
 import Data.Newtype (class Newtype, un, unwrap)
-import Data.Newtype as Newtype
 import Data.Profunctor (class Profunctor, dimap)
 import Data.Profunctor.Choice (class Choice, right)
-import Data.Profunctor.Choice as Choice
-import Data.Set (Set)
-import Data.Set as Set
 import Data.String as String
-import Data.Symbol (class IsSymbol)
-import Data.Time.Duration (Seconds)
-import Data.Traversable (sequence, traverse)
-import Data.Tuple (fst, snd)
+import Data.Tuple (fst)
 import Data.Undefined.NoProblem (Opt)
 import Data.Undefined.NoProblem as NoProblem
-import Data.Validation.Semigroup (V(..))
-import Debug (traceM)
-import Effect (Effect)
-import Effect.Random (random)
-import Effect.Ref as Ref
-import Effect.Uncurried (EffectFn1)
+import Parsing (Parser, runParser) as Parsing
 import Parsing (fail)
-import Parsing as Parsing
-import Parsing.Combinators as Parsing
-import Parsing.String as Parsing
-import Polyform as Polyform
+import Parsing.Combinators (optional, try) as Parsing
+import Parsing.String (char) as Parsing
+import Polyform (Validator)
 import Polyform.Batteries as Batteries
 import Polyform.Batteries.Decimal as Batteries.Decimal
 import Polyform.Batteries.Int as Batteries.Int
 import Polyform.Batteries.Number as Batteries.Number
 import Polyform.Batteries.UrlEncoded as UrlEncoded
-import Polyform.Batteries.UrlEncoded as UrlEncoded
 import Polyform.Batteries.UrlEncoded as UrleEncoded
 import Polyform.Batteries.UrlEncoded.Duals as UrlEncoded.Duals
-import Polyform.Batteries.UrlEncoded.Types (stringifyValidator)
 import Polyform.Batteries.UrlEncoded.Types.Errors (ErrorId(..), Errors(..))
-import Polyform.Batteries.UrlEncoded.Types.Errors as Errors
-import Polyform.Batteries.UrlEncoded.Validators (MissingValue)
-import Polyform.Batteries.UrlEncoded.Validators as Validators
 import Polyform.Dual as Polyform.Dual
-import Polyform.Validator (liftFnEither, runValidator)
+import Polyform.Validator (liftFnEither)
 import Polyform.Validator as Validator
 import Polyform.Validator.Dual as Polyform.Validator.Dual
 import Prim.Row as Row
 import React.Basic (JSX)
-import React.Basic (JSX)
-import React.Basic as DOOM
-import React.Basic.DOM as DOOM
-import React.Basic.DOM as DOOM
-import React.Basic.DOM as R
-import React.Basic.DOM.Events (targetValue)
+import React.Basic.DOM (div_, li_, text, ul_) as DOOM
 import React.Basic.DOM.Events (targetValue)
 import React.Basic.DOM.Simplified.Generated as DOM
-import React.Basic.Events (EventHandler, SyntheticEvent, handler, handler_)
-import React.Basic.Events (handler)
-import React.Basic.Hooks (type (&), type (/\), Hook, UseEffect, UseMemo, UseState, component, useEffect, useEffectOnce, useMemo, useState, useState', (/\))
-import React.Basic.Hooks as React
-import React.Basic.Hooks.UseDebounce (useDebounce)
+import React.Basic.Events (handler, handler_)
+import React.Basic.Hooks (type (/\), (/\))
 import React.Basic.Hooks.UseForm (Form(..), InputState)
 import React.Basic.Hooks.UseForm as UseForm
 import ReactBootstrap.Form as Bootstrap.Form
@@ -100,18 +67,16 @@ import ReactBootstrap.Form as Form
 import ReactBootstrap.Form.Check as Check
 import ReactBootstrap.Form.Control as Form.Control
 import Record as Record
-import Safe.Coerce (coerce)
-import Safe.Coerce as Safe.Coerce
 import Type.Prelude (Proxy(..))
-import Type.Row (type (+))
 
 choiceOpt :: forall a b p. Choice p => Profunctor p => p a b -> p (Maybe a) (Maybe b)
 choiceOpt p = dimap (note unit) (either (const Nothing) Just) (right p)
 
+requiredV :: forall t c d m. Monad m => t -> Validator m (Array t) c d -> Validator m (Array t) (Maybe c) d
 requiredV msg v = v <<< Validator.liftFnEither (note [ msg ])
 
+requiredV' :: forall c d m. Monad m => Validator m (Array String) c d -> Validator m (Array String) (Maybe c) d
 requiredV' v = requiredV "This field is required" v
-
 
 -- The current default rendering uses plain JSX and not react-bootstrap
 -- for labels and other pieces beside `Form.Control`.
@@ -130,7 +95,8 @@ type FormBuilderM builderM = ReaderT (Maybe Prefix) (StateT IdCounter builderM)
 -- | The `T` suffix is an overstatement in here because we don't provide
 -- | a `MonadTrans` instance for `FormBuilderT`. We even don't provide
 -- | a `Monad` instance for it.
-newtype FormBuilderT builderM validatorM i o = FormBuilderT (Compose (FormBuilderM builderM) (BootstrapForm validatorM i) o)
+newtype FormBuilderT builderM validatorM i o = FormBuilderT
+  (Compose (FormBuilderM builderM) (BootstrapForm validatorM i) o)
 
 type FormBuilder = FormBuilderT Identity
 
@@ -153,7 +119,11 @@ formBuilderT
   -> FormBuilderT builderM validatorM i o
 formBuilderT = FormBuilderT <<< Compose
 
-liftBuilderM :: forall builderM validatorM i o. Monad builderM => builderM (BootstrapForm validatorM i o) -> FormBuilderT builderM validatorM i o
+liftBuilderM
+  :: forall builderM validatorM i o
+   . Monad builderM
+  => builderM (BootstrapForm validatorM i o)
+  -> FormBuilderT builderM validatorM i o
 liftBuilderM = formBuilderT <<< lift <<< lift
 
 unFormBuilder
@@ -203,8 +173,8 @@ genId = do
   possiblePrefix <- ask
   let
     prefix str = case possiblePrefix of
-        Nothing -> str
-        Just pref -> pref <> "-" <> str
+      Nothing -> str
+      Just pref -> pref <> "-" <> str
   counter <- get
   put (counter + 1)
   let id = prefix $ show counter
@@ -218,8 +188,18 @@ _genFieldId
 _genFieldId props = do
   case props.name of
     Just name -> pure name
-    Nothing  -> FieldId <$> genId
+    Nothing -> FieldId <$> genId
 
+fieldValidity
+  :: forall a
+   . Eq a
+  => Boolean
+  -> a
+  -> Maybe (Array a /\ Array a)
+  -> { errors :: Array a
+     , isInvalid :: Boolean
+     , isValid :: Boolean
+     }
 fieldValidity touched value errors = do
   let
     validatedValue = do
@@ -230,12 +210,13 @@ fieldValidity touched value errors = do
     isValid = Just [] == map fst errors
   { errors: errors', isInvalid, isValid }
 
-type OptTextInputOptionalPropsRow r =
+type TextInputOptionalPropsRow r =
   ( label :: Maybe JSX
   , name :: Maybe FieldId
   , initial :: String
   , inline :: Boolean
   , helpText :: Maybe JSX
+  , missingError :: String
   , placeholder :: String
   , "type" :: String
   , touched :: Boolean
@@ -245,13 +226,9 @@ type OptTextInputOptionalPropsRow r =
   -- representation of optional props (undefined-is-not-a-problem?)
   , max :: Opt Number
   , min :: Opt Number
+  , sizing :: Maybe FormControlSizing
   , step :: Opt Number
   | r
-  )
-
-type TextInputOptionalPropsRow r =
-  ( missingError :: String
-  | OptTextInputOptionalPropsRow r
   )
 
 type TextInputOptionalProps = { | TextInputOptionalPropsRow () }
@@ -269,6 +246,7 @@ defaultTextInputProps =
   , touched: false
   , max: NoProblem.undefined
   , min: NoProblem.undefined
+  , sizing: Nothing
   , step: NoProblem.undefined
   }
 
@@ -276,6 +254,8 @@ type TextInputProps m a =
   { validator :: Batteries.Validator m String (Maybe String) a
   | TextInputOptionalPropsRow ()
   }
+
+data FormControlSizing = FormControlSm | FormControlLg
 
 -- Rendering helper used by fields constructors below.
 -- Currently we are following the form layout described here:
@@ -289,14 +269,16 @@ renderTextInput
      , name :: FieldId
      , placeholder :: String
      , type :: String
-
+     , sizing :: Maybe FormControlSizing
      , max :: Opt Number
      , min :: Opt Number
      , step :: Opt Number
      }
   -> InputState String
   -> FormElement
-renderTextInput props@{ inline, possibleLabel, possibleHelpText, name, placeholder, "type": type_ } { value, errors, onChange, touched } = do
+renderTextInput
+  props@{ inline, possibleLabel, possibleHelpText, name, placeholder, "type": type_, sizing }
+  { value, errors, onChange, touched } = do
   let
     nameStr = un FieldId name
     label = flip foldMap possibleLabel \labelJSX ->
@@ -305,8 +287,15 @@ renderTextInput props@{ inline, possibleLabel, possibleHelpText, name, placehold
     body = do
       let
         { errors: errors', isValid, isInvalid } = fieldValidity touched value errors
+        className = String.joinWith " " $ Array.catMaybes
+          [ if inline then Just "mb-md-1" else Nothing
+          , case sizing of
+              Nothing -> Nothing
+              Just FormControlSm -> Just "form-control-sm"
+              Just FormControlLg -> Just "form-control-lg"
+          ]
         input = Form.textInput
-          { className: if inline then "mb-md-1" else ""
+          { className
           , name: nameStr
           , placeholder
           , value
@@ -361,6 +350,7 @@ textInput props = formBuilderT do
           , "type": props'."type"
           , max: props'.max
           , min: props'.min
+          , sizing: props'.sizing
           , step: props'.step
           }
       )
@@ -400,7 +390,9 @@ numberInput
   => Monad builderM
   => Row.Lacks "validator" props
   => Row.Lacks "type" props
-  => Defaults TextInputOptionalProps { "type" :: String, validator :: Batteries.Validator validatorM String (Maybe String) Number | props } (TextInputProps validatorM Number)
+  => Defaults TextInputOptionalProps
+       { "type" :: String, validator :: Batteries.Validator validatorM String (Maybe String) Number | props }
+       (TextInputProps validatorM Number)
   => { | props }
   -> FormBuilderT' builderM validatorM Number
 numberInput props = _typedTextInput props "number" $ requiredV' validator
@@ -414,7 +406,9 @@ intInput
   => Monad builderM
   => Row.Lacks "validator" props
   => Row.Lacks "type" props
-  => Defaults TextInputOptionalProps { "type" :: String, validator :: Batteries.Validator validatorM String (Maybe String) Int | props } (TextInputProps validatorM Int)
+  => Defaults TextInputOptionalProps
+       { "type" :: String, validator :: Batteries.Validator validatorM String (Maybe String) Int | props }
+       (TextInputProps validatorM Int)
   => { | props }
   -> FormBuilderT' builderM validatorM Int
 intInput props = _typedTextInput props "number" $ requiredV' validator
@@ -428,7 +422,9 @@ decimalInput
   => Monad validatorM
   => Row.Lacks "validator" props
   => Row.Lacks "type" props
-  => Defaults TextInputOptionalProps { "type" :: String, validator :: Batteries.Validator validatorM String (Maybe String) a | props } (TextInputProps validatorM a)
+  => Defaults TextInputOptionalProps
+       { "type" :: String, validator :: Batteries.Validator validatorM String (Maybe String) a | props }
+       (TextInputProps validatorM a)
   => { validator :: Batteries.Validator validatorM String (Maybe Decimal) a | props }
   -> FormBuilderT' builderM validatorM a
 decimalInput props = _typedTextInput props' "text" $ validator
@@ -475,7 +471,9 @@ timeInput
   => Monad validatorM
   => Row.Lacks "validator" props
   => Row.Lacks "type" props
-  => Defaults TextInputOptionalProps { "type" :: String, validator :: Batteries.Validator validatorM String (Maybe String) a | props } (TextInputProps validatorM a)
+  => Defaults TextInputOptionalProps
+       { "type" :: String, validator :: Batteries.Validator validatorM String (Maybe String) a | props }
+       (TextInputProps validatorM a)
   => { validator :: Batteries.Validator validatorM String (Maybe Time) a | props }
   -> FormBuilderT' builderM validatorM a
 timeInput props = _typedTextInput props' "time" validator
@@ -513,14 +511,20 @@ timeInput props = _typedTextInput props' "time" validator
 
 type MultiFieldIds = { multi :: FieldId, sub :: Array FieldId }
 
-multiField :: forall builderM. Monad builderM => Maybe JSX -> Maybe JSX -> (FieldId -> FormBuilderT builderM _ _ _) -> FormBuilderT builderM _ _ _
+multiField
+  :: forall builderM i o validatorM
+   . Monad builderM
+  => Maybe JSX
+  -> Maybe JSX
+  -> (FieldId -> FormBuilderT builderM validatorM i o)
+  -> FormBuilderT builderM validatorM i o
 multiField possibleLabel possibleHelpText fieldsFormBuilder = formBuilderT do
   prefix <- genId
   form <- withReaderT (const $ Just prefix) $
     unFormBuilder (fieldsFormBuilder $ FieldId prefix)
   let
     Form (formRecord@{ render }) = form
-    -- errorId = Safe.Coerce.coerce fieldId
+  -- errorId = Safe.Coerce.coerce fieldId
   pure $ Form formRecord
     { render = \state -> do
         let
@@ -544,12 +548,13 @@ multiField possibleLabel possibleHelpText fieldsFormBuilder = formBuilderT do
             DOM.label
               { className: "col-sm-3 col-form-label-sm" } $ fold possibleLabel
 
-          body = DOM.div { className: "col-sm-9" } do
-            [ DOM.div { className: "row row-cols-lg-auto align-items-center" }
-                $ render state
-            , renderPossibleHelpText possibleHelpText
-            ]
-            <> flip foldMap possibleFieldErrors \fieldErrors ->
+          body =
+            DOM.div { className: "col-sm-9" } do
+              [ DOM.div { className: "row row-cols-lg-auto align-items-center" }
+                  $ render state
+              , renderPossibleHelpText possibleHelpText
+              ]
+              <> flip foldMap possibleFieldErrors \fieldErrors ->
                 flip foldMapWithIndex fieldErrors \fieldId errors -> do
                   let
                     errorId = un ErrorId fieldId
@@ -575,7 +580,8 @@ dateTimeField
   -> FormBuilderT' builderM validatorM a
 dateTimeField possibleLabel possibleHelpText dateTimeValidator = do
   let
-    dateTimeValidationStep errorId = formBuilderT $ pure $ UseForm.liftValidator (UrlEncoded.fromValidator errorId dateTimeValidator)
+    dateTimeValidationStep errorId = formBuilderT $ pure $ UseForm.liftValidator
+      (UrlEncoded.fromValidator errorId dateTimeValidator)
     fieldsFormBuilder multiFieldErrorId = dateTimeValidationStep multiFieldErrorId <<< ado
       di <- dateInput
         { inline: true
@@ -614,6 +620,7 @@ defaultTextAreaProps =
   , touched: false
   , max: NoProblem.undefined
   , min: NoProblem.undefined
+  , sizing: Nothing
   , step: NoProblem.undefined
   }
 
@@ -641,8 +648,9 @@ renderTextArea
 renderTextArea { possibleLabel, helpText, name, placeholder, rows } { value, errors, onChange, touched } = do
   let
     nameStr = un FieldId name
-    label = DOM.label { className: "col-form-label-sm col-sm-3", htmlFor: nameStr } $ possibleLabel `flip foldMap` \labelJsx ->
-      [ labelJsx ]
+    label = DOM.label { className: "col-form-label-sm col-sm-3", htmlFor: nameStr } $ possibleLabel `flip foldMap`
+      \labelJsx ->
+        [ labelJsx ]
     body = DOM.div { className: "col-sm-9" } do
       let
         { errors: errors', isValid, isInvalid } = fieldValidity touched value errors
@@ -759,7 +767,9 @@ renderChoiceField
      }
   -> InputState String
   -> Array FormElement
-renderChoiceField { choices, inline, possibleHelpText, possibleLabel, name } { value: selectedValue, errors, onChange, touched } = do
+renderChoiceField
+  { choices, inline, possibleHelpText, possibleLabel, name }
+  { value: selectedValue, errors, onChange, touched } = do
   let
     nameStr = un FieldId name
     -- FIXME: We don't use `id` for label (htmlFor) yet.
@@ -771,16 +781,16 @@ renderChoiceField { choices, inline, possibleHelpText, possibleLabel, name } { v
     body = case choices of
       RadioButtonFieldChoices { switch, choices: choices' } -> do
         let
-          renderChoice { disabled, helpText, label, value } = do
+          renderChoice { disabled, helpText, label: label', value } = do
             let
               checked = value == selectedValue
-              label' = label <> renderPossibleHelpText helpText
+              label'' = label' <> renderPossibleHelpText helpText
               { isValid, isInvalid } = fieldValidity touched value errors
 
             Form.check
               { disabled
               , id: nameStr <> "-" <> value
-              , label: label'
+              , label: label''
               , isValid
               , isInvalid
               , name: nameStr
@@ -880,7 +890,13 @@ choiceField'
   => Monad builderM
   => BoundedEnum a
   => Defaults ChoiceFieldOptionalProps { | props' } (ChoiceFieldProps validatorM a)
-  => Row.Nub (choices :: ChoiceFieldChoices, initial :: String, validator :: Batteries.Validator validatorM String (Maybe String) a | props) props'
+  => Row.Nub
+       ( choices :: ChoiceFieldChoices
+       , initial :: String
+       , validator :: Batteries.Validator validatorM String (Maybe String) a
+       | props
+       )
+       props'
   => UseChoiceField a
   -> Maybe (ArrayAL 1 a)
   -> { | props }

@@ -43,7 +43,6 @@ to generate this file without the comments in this block.
   , "polyform-batteries-urlencoded"
   , "prelude"
   , "profunctor"
-  , "random"
   , "react-basic"
   , "react-basic-dom"
   , "react-basic-hooks"
