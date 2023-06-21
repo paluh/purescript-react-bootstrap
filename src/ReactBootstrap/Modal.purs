@@ -18,7 +18,7 @@ fullscreen
   :: { "lg-down" :: Fullscreen
      , "md-down" :: Fullscreen
      , "sm-down" :: Fullscreen
-     , true :: Fullscreen
+     , "true" :: Fullscreen
      , "xl-down" :: Fullscreen
      , "xxl-down" :: Fullscreen
      }

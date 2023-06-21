@@ -18,7 +18,7 @@ import Data.DateTime.ISO (parseISODate)
 import Data.Decimal (Decimal)
 import Data.Either (Either(..), either, note)
 import Data.Enum (class BoundedEnum, toEnum, upFromIncluding)
-import Data.Foldable (fold, foldMap, null, traverse_)
+import Data.Foldable (all, fold, foldMap, null, traverse_)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.FormURLEncoded.Query (FieldId(..), Query)
 import Data.FormURLEncoded.Query as FormURLEncoded
@@ -27,7 +27,7 @@ import Data.Functor.Compose (Compose(..))
 import Data.Identity (Identity(..))
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe, isJust)
+import Data.Maybe (Maybe(..), fromMaybe, isJust, isNothing)
 import Data.Monoid as Monoid
 import Data.Newtype (class Newtype, un, unwrap)
 import Data.Profunctor (class Profunctor, dimap)
@@ -214,7 +214,7 @@ type TextInputOptionalPropsRow r =
   ( label :: Maybe JSX
   , name :: Maybe FieldId
   , initial :: String
-  , inline :: Boolean
+  , layout :: FieldLayout
   , helpText :: Maybe JSX
   , missingError :: String
   , placeholder :: String
@@ -236,7 +236,11 @@ type TextInputOptionalProps = { | TextInputOptionalPropsRow () }
 defaultTextInputProps :: TextInputOptionalProps
 defaultTextInputProps =
   { label: Nothing
-  , inline: false
+  , layout: MultiColumn
+      { sm: Col3Label
+      , md: Col3Label
+      , lg: Col3Label
+      }
   , missingError: "This field is required"
   , name: Nothing
   , initial: ""
@@ -257,13 +261,75 @@ type TextInputProps m a =
 
 data FormControlSizing = FormControlSm | FormControlLg
 
+data LabelSpacing
+  = Col1Label
+  | Col2Label
+  | Col3Label
+  | Col4Label
+  | Col5Label
+  | Col6Label
+derive instance Eq LabelSpacing
+derive instance Ord LabelSpacing
+
+type LabelSpacings =
+  { sm :: LabelSpacing
+  , md :: LabelSpacing
+  , lg :: LabelSpacing
+  }
+
+col3spacings :: LabelSpacings
+col3spacings =
+  { sm: Col3Label
+  , md: Col3Label
+  , lg: Col3Label
+  }
+
+data FieldLayout
+  = Inline
+  | MultiColumn LabelSpacings
+derive instance Eq FieldLayout
+derive instance Ord FieldLayout
+
+data Breakpoint = Sm | Md | Lg
+
+breakpointToString :: Breakpoint -> String
+breakpointToString = case _ of
+  Sm -> "sm"
+  Md -> "md"
+  Lg -> "lg"
+
+labelSpacingToClasses :: Breakpoint -> LabelSpacing -> { labelColClass :: String, inputColClass :: String }
+labelSpacingToClasses breakpoint = do
+  let
+    breakpointStr = breakpointToString breakpoint
+  case _ of
+    Col1Label -> { labelColClass: "col-" <> breakpointStr <> "-1", inputColClass: "col-" <> breakpointStr <> "-11" }
+    Col2Label -> { labelColClass: "col-" <> breakpointStr <> "-2", inputColClass: "col-" <> breakpointStr <> "-10" }
+    Col3Label -> { labelColClass: "col-" <> breakpointStr <> "-3", inputColClass: "col-" <> breakpointStr <> "-9" }
+    Col4Label -> { labelColClass: "col-" <> breakpointStr <> "-4", inputColClass: "col-" <> breakpointStr <> "-8" }
+    Col5Label -> { labelColClass: "col-" <> breakpointStr <> "-5", inputColClass: "col-" <> breakpointStr <> "-7" }
+    Col6Label -> { labelColClass: "col-" <> breakpointStr <> "-6", inputColClass: "col-" <> breakpointStr <> "-6" }
+
+labelSpacingsToClasses :: LabelSpacings -> { labelColClass :: String, inputColClass :: String }
+labelSpacingsToClasses { sm, md, lg } = do
+  let
+    smClasses = labelSpacingToClasses Sm sm
+    mdClasses = labelSpacingToClasses Md md
+    lgClasses = labelSpacingToClasses Lg lg
+  { labelColClass: smClasses.labelColClass <> " " <> mdClasses.labelColClass <> " " <> lgClasses.labelColClass
+  , inputColClass: smClasses.inputColClass <> " " <> mdClasses.inputColClass <> " " <> lgClasses.inputColClass
+  }
+
+isInline :: FieldLayout -> Boolean
+isInline = eq Inline
+
 -- Rendering helper used by fields constructors below.
 -- Currently we are following the form layout described here:
 --  https://getbootstrap.com/docs/5.0/forms/layout/#horizontal-form
 -- TODO: Make it a default prop of the final field
 -- constructor.
 renderTextInput
-  :: { inline :: Boolean
+  :: { layout :: FieldLayout
      , possibleHelpText :: Maybe JSX
      , possibleLabel :: Maybe JSX
      , name :: FieldId
@@ -277,18 +343,20 @@ renderTextInput
   -> InputState String
   -> FormElement
 renderTextInput
-  props@{ inline, possibleLabel, possibleHelpText, name, placeholder, "type": type_, sizing }
+  props@{ layout, possibleLabel, possibleHelpText, name, placeholder, "type": type_, sizing }
   { value, errors, onChange, touched } = do
   let
     nameStr = un FieldId name
-    label = flip foldMap possibleLabel \labelJSX ->
-      if inline then DOM.label {} [ labelJSX ]
-      else DOM.label { className: "col-sm-3 col-form-label-sm" } [ labelJSX ]
+    label = flip foldMap possibleLabel \labelJSX -> case layout of
+      Inline -> DOM.label {} [ labelJSX ]
+      MultiColumn spacings -> do
+        let { labelColClass } = labelSpacingsToClasses spacings
+        DOM.label { className: labelColClass <> " col-form-label-sm" } [ labelJSX ]
     body = do
       let
         { errors: errors', isValid, isInvalid } = fieldValidity touched value errors
         className = String.joinWith " " $ Array.catMaybes
-          [ if inline then Just "mb-md-1" else Nothing
+          [ if isInline layout then Just "mb-md-1" else Nothing
           , case sizing of
               Nothing -> Nothing
               Just FormControlSm -> Just "form-control-sm"
@@ -307,22 +375,26 @@ renderTextInput
           , min: props.min
           , max: props.max
           }
-      if inline then case possibleHelpText of
-        Nothing -> input
-        Just _ -> DOOM.div_
-          [ input
-          , renderPossibleHelpText possibleHelpText
-          ]
-      else DOM.div { className: "col-sm-9" } $
-        input
-          <> do
-            Monoid.guard isInvalid do
-              DOM.div { className: "invalid-feedback" }
-                [ DOOM.ul_ $ map (DOOM.li_ <<< Array.singleton <<< DOOM.text) errors' ]
-          <> do
-            Monoid.guard (not isInvalid) do
-              renderPossibleHelpText possibleHelpText
-  if inline then DOM.div { className: "col-12 flex-fill" } [ label, body ]
+      case layout of
+        Inline -> case possibleHelpText of
+          Nothing -> input
+          Just _ -> DOOM.div_
+            [ input
+            , renderPossibleHelpText possibleHelpText
+            ]
+        MultiColumn spacing -> do
+          let { inputColClass } = labelSpacingsToClasses spacing
+          DOM.div { className: inputColClass } $
+            input
+              <> do
+                Monoid.guard isInvalid do
+                  DOM.div { className: "invalid-feedback" }
+                    [ DOOM.ul_ $ map (DOOM.li_ <<< Array.singleton <<< DOOM.text) errors' ]
+              <> do
+                Monoid.guard (not isInvalid) do
+                  renderPossibleHelpText possibleHelpText
+
+  if isInline layout then DOM.div { className: "col-12 flex-fill" } [ label, body ]
   else DOM.div { className: "row mb-2" } [ label, body ]
 
 textInput
@@ -342,7 +414,7 @@ textInput props = formBuilderT do
       name
       props'.initial
       ( Array.singleton <<< renderTextInput
-          { inline: props'.inline
+          { layout: props'.layout
           , possibleLabel: props'.label
           , possibleHelpText: props'.helpText
           , name
@@ -584,12 +656,12 @@ dateTimeField possibleLabel possibleHelpText dateTimeValidator = do
       (UrlEncoded.fromValidator errorId dateTimeValidator)
     fieldsFormBuilder multiFieldErrorId = dateTimeValidationStep multiFieldErrorId <<< ado
       di <- dateInput
-        { inline: true
+        { layout: Inline
         , validator: identity
         }
 
       ti <- timeInput
-        { inline: true
+        { layout: Inline
         , initial: "00:00"
         , validator: identity
         }
@@ -610,7 +682,7 @@ defaultTextAreaProps =
   , missingError: "This field is required"
   , name: Nothing
   , initial: ""
-  , inline: false
+  , layout: MultiColumn col3spacings
   , placeholder: ""
   , rows: 3
   , helpText: Nothing
@@ -638,6 +710,7 @@ renderPossibleHelpText = foldMap \ht ->
 -- `data AnyTextInput = TextArea { rows: Int } | TextInput`.
 renderTextArea
   :: { helpText :: Maybe JSX
+     , layout :: FieldLayout
      , possibleLabel :: Maybe JSX
      , name :: FieldId
      , placeholder :: String
@@ -645,13 +718,18 @@ renderTextArea
      }
   -> InputState String
   -> FormElement
-renderTextArea { possibleLabel, helpText, name, placeholder, rows } { value, errors, onChange, touched } = do
+renderTextArea { possibleLabel, layout, helpText, name, placeholder, rows } { value, errors, onChange, touched } = do
   let
     nameStr = un FieldId name
-    label = DOM.label { className: "col-form-label-sm col-sm-3", htmlFor: nameStr } $ possibleLabel `flip foldMap`
+    { labelColClass, inputColClass } = case layout of
+      MultiColumn labelSpacings -> labelSpacingsToClasses labelSpacings
+      Inline -> { labelColClass: "", inputColClass: "" }
+
+
+    label = DOM.label { className: "col-form-label-sm " <> labelColClass, htmlFor: nameStr } $ possibleLabel `flip foldMap`
       \labelJsx ->
         [ labelJsx ]
-    body = DOM.div { className: "col-sm-9" } do
+    body = DOM.div { className: "col-sm-9 " <> inputColClass } do
       let
         { errors: errors', isValid, isInvalid } = fieldValidity touched value errors
       Form.Control.textArea
@@ -691,6 +769,7 @@ textArea props = formBuilderT do
       ( Array.singleton <<< renderTextArea
           { possibleLabel: props'.label
           , name
+          , layout: props'.layout
           , helpText: props'.helpText
           , placeholder: props'.placeholder
           , rows: props'.rows
@@ -707,19 +786,19 @@ textArea props = formBuilderT do
 type FieldChoice label =
   { disabled :: Boolean
   , helpText :: Maybe JSX
-  , label :: label
+  , label :: Maybe label
   , value :: String
   }
 
 type RadioFieldChoice = FieldChoice JSX
 
 radioFieldChoice :: String -> JSX -> RadioFieldChoice
-radioFieldChoice value label = { disabled: false, helpText: Nothing, label, value }
+radioFieldChoice value label = { disabled: false, helpText: Nothing, label: Just label, value }
 
 type SelectFieldChoice = FieldChoice String
 
 selectFieldChoice :: String -> String -> SelectFieldChoice
-selectFieldChoice label value = { disabled: false, helpText: Nothing, label, value }
+selectFieldChoice label value = { disabled: false, helpText: Nothing, label: Just label, value }
 
 data ChoiceFieldChoices
   = RadioButtonFieldChoices
@@ -781,10 +860,11 @@ renderChoiceField
     body = case choices of
       RadioButtonFieldChoices { switch, choices: choices' } -> do
         let
-          renderChoice { disabled, helpText, label: label', value } = do
+          noLabels = all (isNothing <<< _.label) choices'
+          renderChoice { disabled, helpText, label: possibleLabel', value } = do
             let
               checked = value == selectedValue
-              label'' = label' <> renderPossibleHelpText helpText
+              label'' = fold possibleLabel' <> renderPossibleHelpText helpText
               { isValid, isInvalid } = fieldValidity touched value errors
 
             Form.check
@@ -806,13 +886,13 @@ renderChoiceField
               }
           className =
             if not inline then "form-check col-sm-9"
-            else "form-check"
+            else "form-check" <> (if noLabels then " pl-1" else "")
         DOM.div { className } $ map renderChoice (ArrayAL.toArray choices')
 
       SelectFieldChoices choices' -> do
         let
           renderOption { disabled, label: label', value } = do
-            DOM.option { value, disabled } [ DOOM.text label' ]
+            DOM.option { value, disabled } [ DOOM.text $ fold label' ]
 
           onChangeHandler = handler targetValue \val -> do
             (traverse_ onChange val)
@@ -874,7 +954,7 @@ choiceField props = formBuilderT do
 
 type ChoiceConfig doc =
   { disabled :: Boolean
-  , label :: doc
+  , label :: Maybe doc
   , helpText :: Maybe JSX
   }
 
