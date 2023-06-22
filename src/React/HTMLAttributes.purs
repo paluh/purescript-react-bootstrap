@@ -330,7 +330,7 @@ type DOMAttributes' otherProps =
   --   // MouseEvents
   --   onAuxClick?: MouseEventHandler<T> | undefined;
   --   onAuxClickCapture?: MouseEventHandler<T> | undefined;
-  , onClick :: EventHandler -- onClick?: MouseEventHandler<T> | undefined;
+  , onClick :: Opt EventHandler -- onClick?: MouseEventHandler<T> | undefined;
   --   onClickCapture?: MouseEventHandler<T> | undefined;
   --   onContextMenu?: MouseEventHandler<T> | undefined;
   --   onContextMenuCapture?: MouseEventHandler<T> | undefined;
