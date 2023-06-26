@@ -7,7 +7,11 @@ import React.Basic.DOM.Simplified.ToJSX (class ToJSX, toJSX)
 import Record as Record
 import Unsafe.Coerce (unsafeCoerce)
 
-type Props_tooltip = (placement :: Placement, show :: Boolean, children :: Array JSX)
+type Props_tooltip =
+  ( placement :: Placement
+  , show :: Boolean, children :: Array JSX
+  , className :: String
+  )
 
 foreign import _Tooltip :: ReactComponent { | Props_tooltip }
 
