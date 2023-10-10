@@ -1,13 +1,12 @@
 module ReactBootstrap.Form.Control where
 
-import Prelude
 
-import React.HTMLAttributes (HTMLAttributes, InputHTMLAttributes)
-import Data.Maybe (Maybe(..))
-import Debug (traceM)
+import Data.Undefined.NoProblem (Opt)
+import Data.Undefined.NoProblem.Closed as NoProblem
 import Prim.Row as Row
 import React.Basic (JSX, ReactComponent, element)
 import React.Basic.Events (EventHandler)
+import React.HTMLAttributes (HTMLAttributes', InputHTMLAttributes')
 import Record as Record
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
@@ -25,73 +24,84 @@ value =
   , "array": unsafeCoerce :: Array String -> Value
   }
 
-type BaseProps controlValue extraProps = HTMLAttributes + InputHTMLAttributes +
-  ( htmlSize :: Int
-  , as :: String
-  , size :: String
-  , plaintext :: Boolean
-  , readOnly :: Boolean
-  , disabled :: Boolean
-  , value :: controlValue
-  , onChange :: EventHandler
-  , name :: String
-  , isValid :: Boolean
-  , isInvalid :: Boolean
+type BaseProps controlValue extraProps = HTMLAttributes' + InputHTMLAttributes' +
+  ( htmlSize :: Opt Int
+  , as :: Opt String
+  , size :: Opt String
+  , plaintext :: Opt Boolean
+  , readOnly :: Opt Boolean
+  , disabled :: Opt Boolean
+  , value :: Opt controlValue
+  , onChange :: Opt EventHandler
+  , name :: Opt String
+  , isValid :: Opt Boolean
+  , isInvalid :: Opt Boolean
   | extraProps
   )
 
 -- | Direct translation from ts to purescript
--- | TODO: Add more handy / safe wrappers.
--- | `type` is only relevant when `as` is an `input`.
+-- | We probably don't really need `control` element
+-- | definition as we provide `textInput` and `textArea`.
 type Props_control = BaseProps String ("type" :: String)
 
 foreign import _Control :: ReactComponent { | Props_control }
 
-_internalcontrol :: forall attrs attrs_. Row.Union attrs attrs_ Props_control => ReactComponent { | attrs }
-_internalcontrol = unsafeCoerce _Control
+_internalcontrol
+  :: forall props
+   . NoProblem.Coerce { | props } { | Props_control }
+  => { | props } -> JSX
+_internalcontrol props = do
+  let
+    props' = NoProblem.coerce props
+  element _Control props'
 
 control
-  :: forall attrs attrs_
-   . Row.Union attrs attrs_ Props_control
-  => Record attrs
+  :: forall props
+   . NoProblem.Coerce { | props } { | Props_control }
+  => { | props }
   -> JSX
-control props = element _internalcontrol props
+control props = _internalcontrol props
 
 type Props_inputtext = BaseProps String ()
 
 textInput
-  :: forall attrs attrs' attrs_
-   . Row.Union attrs' attrs_ Props_control
-  => Row.Union attrs (type :: String, as :: String) (type :: String, as :: String | attrs)
-  => Row.Nub (type :: String, as :: String | attrs) attrs'
-  => Record attrs
+  :: forall props props'
+   . NoProblem.Coerce { | props' } { | Props_control }
+  => Row.Union props (type :: String, "as" :: String) (type :: String, "as" :: String | props)
+  => Row.Nub (type :: String, "as" :: String | props) props'
+  => { | props }
   -> JSX
-textInput props = element _internalcontrol props'
+textInput props = _internalcontrol props'
   where
-  props' :: { | attrs' }
+  props' :: { | props' }
   props' = Record.merge props { "type": "text", "as": "input" }
 
 -- There is a bug in react-bootstrap type definitions because
 -- types miss the "rows" and "cols" attributes.
-type Props_textArea = BaseProps String ("type" :: String, rows :: Int, cols :: Int)
+type Props_textArea = BaseProps String (rows :: Opt Int, cols :: Opt Int)
 
-_internalTextArea :: forall attrs attrs_. Row.Union attrs attrs_ Props_textArea => ReactComponent { | attrs }
-_internalTextArea = unsafeCoerce _Control
+_TextArea :: ReactComponent { | Props_textArea }
+_TextArea = unsafeCoerce _Control
+
+_internalTextArea
+  :: forall props
+   . NoProblem.Coerce { | props } { | Props_textArea }
+  => { | props }
+  -> JSX
+_internalTextArea props = do
+  let
+    props' = NoProblem.coerce props
+  element _TextArea props'
 
 textArea
-  :: forall attrs attrs' attrs_
-   . Row.Union attrs' attrs_ Props_textArea
-  => Row.Nub (as :: String | attrs) attrs'
-  => Record attrs
+  :: forall props props'
+   . NoProblem.Coerce { | props' } { | Props_textArea }
+  => Row.Union props ("as" :: String) ("as" :: String | props)
+  => Row.Nub ("as" :: String | props) props'
+  => { | props }
   -> JSX
-textArea props = element _internalTextArea props'
+textArea props = _internalTextArea props'
   where
-  props' :: { | attrs' }
-  props' = Record.merge { "as": "textarea" } props
+  props' :: { | props' }
+  props' = Record.merge props { "as": "textarea" }
 
--- There is a bug in react-bootstrap type definitions because
--- types miss the "rows" and "cols" attributes.
-type Props_select = BaseProps String (multiple :: Boolean)
-
-_internalSelect :: forall attrs attrs_. Row.Union attrs attrs_ Props_select => ReactComponent { | attrs }
-_internalSelect = unsafeCoerce _Control

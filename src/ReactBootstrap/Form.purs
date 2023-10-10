@@ -10,7 +10,7 @@ import Prim.Row as Row
 import React.Basic (JSX, ReactComponent, element)
 import React.Basic.DOM.Simplified.ToJSX (class ToJSX, toJSX)
 import ReactBootstrap.Form.Check (check) as Exports
-import ReactBootstrap.Form.Control (control, textInput, textArea) as Exports
+import ReactBootstrap.Form.Control (textInput, textArea) as Exports
 import ReactBootstrap.Form.Group (group) as Exports
 import ReactBootstrap.Form.Label (label) as Exports
 import ReactBootstrap.Form.Select (select) as Exports

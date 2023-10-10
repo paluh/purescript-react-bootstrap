@@ -193,6 +193,7 @@ type AriaAttributes' otherProps =
 --     /** Defines the human readable text alternative of aria-valuenow for a range widget. */
 --     'aria-valuetext'?: string | undefined;
 -- }
+  | otherProps
   )
 -- // All the WAI-ARIA 1.1 role attribute values from https://www.w3.org/TR/wai-aria-1.1/#role_definitions
 -- type AriaRole =
