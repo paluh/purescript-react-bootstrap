@@ -106,7 +106,7 @@ type AriaAttributes' otherProps =
 --      * Identifies the element (or elements) that labels the current element.
 --      * @see aria-describedby.
 --      */
-  , "aria-labeledby" :: Opt String --     'aria-labelledby'?: string | undefined;
+  , "aria-labelledby" :: Opt String --     'aria-labelledby'?: string | undefined;
 --     /** Defines the hierarchical level of an element within a structure. */
 --     'aria-level'?: number | undefined;
 --     /** Indicates that an element will be updated, and describes the types of updates the user agents, assistive technologies, and user can expect from the live region. */
