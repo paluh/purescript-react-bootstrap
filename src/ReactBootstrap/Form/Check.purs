@@ -1,9 +1,10 @@
 module ReactBootstrap.Form.Check where
 
-import React.HTMLAttributes (InputHTMLAttributes)
+import Data.Undefined.NoProblem (Opt)
 import Prim.Row as Row
 import React.Basic (JSX, ReactComponent, element)
 import React.Basic.DOM.Simplified.ToJSX (class ToJSX, toJSX)
+import React.HTMLAttributes (InputHTMLAttributes)
 import Record as Record
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
@@ -33,8 +34,8 @@ type Props_check =
     , feedbackTooltip :: Boolean
     , id :: String
     , inline :: Boolean
-    , isInvalid :: Boolean
-    , isValid :: Boolean
+    , isInvalid :: Opt Boolean
+    , isValid :: Opt Boolean
     , label :: JSX
     , reverse :: Boolean
     , title :: String

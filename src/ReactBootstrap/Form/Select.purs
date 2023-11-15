@@ -2,11 +2,12 @@ module ReactBootstrap.Form.Select where
 
 import Prelude
 
-import React.HTMLAttributes (SelectHTMLAttributes)
+import Data.Undefined.NoProblem (Opt)
 import Effect (Effect)
 import Prim.Row as Row
 import React.Basic (JSX, ReactComponent, element)
 import React.Basic.DOM.Simplified.ToJSX (class ToJSX, toJSX)
+import React.HTMLAttributes (SelectHTMLAttributes)
 import Record as Record
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
@@ -23,8 +24,8 @@ type Props_select =
   SelectHTMLAttributes +
     ( disabled :: Boolean
     , htmlSize :: Int
-    , isInvalid :: Boolean
-    , isValid :: Boolean
+    , isInvalid :: Opt Boolean
+    , isValid :: Opt Boolean
     , onChange :: String -> Effect Unit
     , size :: Size
     , value :: String
