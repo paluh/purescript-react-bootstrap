@@ -30,6 +30,7 @@
   , "undefined-is-not-a-problem"
   , "unsafe-coerce"
   , "validation"
+  , "web-dom"
   , "web-html"
   ]
 , packages = ./packages.dhall
