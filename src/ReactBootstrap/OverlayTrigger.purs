@@ -2,13 +2,17 @@ module ReactBootstrap.OverlayTrigger where
 
 import Prelude
 
-import ReactBootstrap.Types (Placement)
+import Data.Nullable (Nullable)
+import Data.Undefined.NoProblem (Opt)
 import Effect (Effect)
 import Prim.Row as Row
-import React.Basic (JSX, ReactComponent, element)
-import React.Basic.DOM.Simplified.ToJSX (class ToJSX, toJSX)
+import React.Basic (JSX, ReactComponent, Ref, element)
+import React.Basic.Events (EventHandler)
+import ReactBootstrap.Tooltip (TooltipPropsRow)
+import ReactBootstrap.Types (Placement)
 import Record as Record
 import Unsafe.Coerce (unsafeCoerce)
+import Web.DOM (Node)
 
 foreign import data OverlayDelay :: Type
 
@@ -38,14 +42,22 @@ overlayTriggerType =
   , focus: unsafeCoerce "focus" :: OverlayTriggerType
   }
 
+type SubcomponentProps =
+  { onBlur :: EventHandler
+  , onFocus :: EventHandler
+  , onMouseOut :: EventHandler
+  , onMouseOver :: EventHandler
+  , ref :: Ref (Nullable Node)
+  }
+
 type Props_overlayTrigger =
-  ( children :: Array JSX
+  ( children :: SubcomponentProps -> JSX
   , defaultShow :: Boolean
   , delay :: OverlayDelay
   , flip :: Boolean
   , onToggle :: Boolean -> Effect Unit
-  , overlay :: JSX
-  , placement :: Placement
+  , overlay :: { | TooltipPropsRow } -> JSX
+  , placement :: Opt Placement
   -- , popperConfig
   , trigger :: Array OverlayTriggerType
   )
@@ -56,15 +68,14 @@ _internalOverlayTrigger :: forall attrs attrs_. Row.Union attrs attrs_ Props_ove
 _internalOverlayTrigger = unsafeCoerce _OverlayTrigger
 
 overlayTrigger
-  :: forall attrsNoChildren attrsWithDuplicate attrs attrs_ jsx
+  :: forall attrsNoChildren attrsWithDuplicate attrs attrs_
    . Row.Union attrs attrs_ Props_overlayTrigger
-  => ToJSX jsx
-  => Row.Union (children :: Array JSX) attrsNoChildren attrsWithDuplicate
-  => Row.Nub (children :: Array JSX | attrsNoChildren) attrs
+  => Row.Union (children :: SubcomponentProps -> JSX) attrsNoChildren attrsWithDuplicate
+  => Row.Nub (children :: SubcomponentProps -> JSX | attrsNoChildren) attrs
   => Record attrsNoChildren
-  -> jsx
+  -> (SubcomponentProps -> JSX)
   -> JSX
 overlayTrigger props children = element _internalOverlayTrigger propsWithChildren
   where
   propsWithChildren :: { | attrs }
-  propsWithChildren = Record.merge { children: toJSX children } props
+  propsWithChildren = Record.merge { children } props
