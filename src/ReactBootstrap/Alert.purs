@@ -2,35 +2,38 @@ module ReactBootstrap.Alert where
 
 import Prelude
 
-import ReactBootstrap.Types (Variant)
-import React.HTMLAttributes (HTMLAttributes)
+import Data.Undefined.NoProblem (Opt)
+import Data.Undefined.NoProblem.Closed as NoProblem
 import Effect (Effect)
 import Prim.Row as Row
 import React.Basic (JSX, ReactComponent, element)
 import React.Basic.DOM.Simplified.ToJSX (class ToJSX, toJSX)
+import React.HTMLAttributes (HTMLAttributes, HTMLAttributes')
+import ReactBootstrap.Types (Variant)
 import Record as Record
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
 
-type Props_alert =
-  HTMLAttributes +
-    (children :: Array JSX, transition :: Boolean, onClose :: Effect Unit, closeLabel :: String, dismissible :: Boolean, show :: Boolean, variant :: Variant)
+type AlertProps = HTMLAttributes' +
+  ( "data-testId" :: Opt String
+  , transition :: Opt Boolean
+  , onClose :: Opt (Effect Unit)
+  , closeLabel :: Opt String
+  , dismissible :: Opt Boolean
+  , show :: Opt Boolean
+  , variant :: Opt Variant
+  )
 
-foreign import _Alert :: ReactComponent { | Props_alert }
-
-_internalalert :: forall attrs attrs_. Row.Union attrs attrs_ Props_alert => ReactComponent { | attrs }
-_internalalert = unsafeCoerce _Alert
+foreign import alertImpl :: { | AlertProps } -> Array JSX -> JSX
 
 alert
-  :: forall attrsNoChildren attrsWithDuplicate attrs attrs_ jsx
-   . Row.Union attrs attrs_ Props_alert
-  => ToJSX jsx
-  => Row.Union (children :: Array JSX) attrsNoChildren attrsWithDuplicate
-  => Row.Nub (children :: Array JSX | attrsNoChildren) attrs
-  => Record attrsNoChildren
-  -> jsx
+  :: forall props
+   . NoProblem.Coerce { | props } { | AlertProps }
+  => { | props }
+  -> Array JSX
   -> JSX
-alert props children = element _internalalert propsWithChildren
-  where
-  propsWithChildren :: { | attrs }
-  propsWithChildren = Record.merge { children: toJSX children } props
+alert props children = do
+  let
+    props' = NoProblem.coerce props
+  alertImpl props' children
+

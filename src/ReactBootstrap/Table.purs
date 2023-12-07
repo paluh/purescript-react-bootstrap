@@ -58,6 +58,7 @@ type Props_table =
   , bordered :: Boolean -- boolean
   , borderless :: Boolean -- boolean
   , hover :: Boolean -- boolean
+  , id :: String
   , size :: Size -- string
   , variant :: Variant -- string
   , responsive :: Responsive -- boolean | string
